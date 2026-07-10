@@ -217,27 +217,10 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
     return <View style={styles.container} />;
   }
 
-  // Clock state for multi-app home screen
-  const [currentTime, setCurrentTime] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
-  };
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  };
-  const formatDay = (date: Date) => {
-    return date.toLocaleDateString('id-ID', { weekday: 'long' });
-  };
-
   // Multi-app mode: show app grid (home screen)
   if (isMultiAppMode && !isAppLaunched) {
     return (
-      <View style={styles.multiAppContainer} onTouchStart={handleGridTouch}>
+      <View style={styles.container} onTouchStart={handleGridTouch}>
         {showStatusBar && (
           <StatusBar
             showBattery={showBattery}
@@ -249,21 +232,12 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
           />
         )}
         <View style={styles.multiAppHeader}>
-          <View style={styles.multiAppHeaderLeft}>
-            <Image
-              source={require('../assets/images/logo_circle.png')}
-              style={styles.miniLogo}
-              resizeMode="contain"
-            />
-            <Text style={styles.multiAppTitle}>Rekosistem</Text>
-          </View>
-          <View style={styles.multiAppHeaderRight}>
-            <Text style={styles.multiAppClock}>{formatTime(currentTime)}</Text>
-            <View style={styles.multiAppDateContainer}>
-              <Text style={styles.multiAppDate}>{formatDate(currentTime)}</Text>
-              <Text style={styles.multiAppDay}>{formatDay(currentTime)}</Text>
-            </View>
-          </View>
+          <Image
+            source={require('../assets/images/logo_circle.png')}
+            style={styles.miniLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.multiAppTitle}>RekoKiosk</Text>
         </View>
         <FlatList
           data={homeScreenApps}
@@ -553,62 +527,25 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   // Multi-app home screen styles
-  multiAppContainer: {
-    flex: 1,
-    backgroundColor: '#e8f0fe',
-  },
   multiAppHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#1a3a7a',
-    borderRadius: 16,
-    marginHorizontal: 12,
-    marginTop: 12,
-  },
-  multiAppHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  multiAppHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  multiAppClock: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  multiAppDateContainer: {
-    borderLeftWidth: 1,
-    borderLeftColor: 'rgba(255,255,255,0.4)',
-    paddingLeft: 12,
-  },
-  multiAppDate: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  multiAppDay: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+    paddingVertical: 12,
+    gap: 10,
   },
   miniLogo: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
   },
   multiAppTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
   appGrid: {
     paddingHorizontal: 16,
-    paddingTop: 30,
+    paddingTop: 20,
   },
   appGridRow: {
     justifyContent: 'flex-start',
@@ -617,36 +554,35 @@ const styles = StyleSheet.create({
   },
   appIconContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   appIconImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    marginBottom: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 14,
+    marginBottom: 6,
   },
   appIconCircle: {
-    width: 64,
-    height: 64,
+    width: 60,
+    height: 60,
     borderRadius: 16,
-    backgroundColor: 'rgba(26, 58, 122, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(26, 58, 122, 0.2)',
-    marginBottom: 8,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    marginBottom: 6,
   },
   appIconText: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#1a3a7a',
+    color: '#fff',
   },
   appIconLabel: {
-    fontSize: 12,
-    color: '#333',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
-    lineHeight: 15,
-    fontWeight: '500',
+    lineHeight: 14,
   },
   testModeBar: {
     backgroundColor: '#FFA726',
