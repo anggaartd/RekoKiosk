@@ -15,7 +15,7 @@ jobs:
 
       - name: Free disk space
         run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
           sudo apt-get clean
 
       - name: Setup Node.js
@@ -46,7 +46,7 @@ jobs:
       - name: Accept Android licenses & install SDK
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          sdkmanager "platforms;android-34" "platforms;android-36" "build-tools;34.0.0" "build-tools;35.0.0" "build-tools;36.0.0" "platform-tools" "ndk;27.1.12297006" "cmake;3.22.1"
 
       - name: Install dependencies
         run: npm install
@@ -63,7 +63,10 @@ jobs:
           echo "org.gradle.configureondemand=true" >> gradle.properties
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
-          echo "newArchEnabled=false" >> gradle.properties
+
+      - name: Generate codegen for native modules
+        working-directory: android
+        run: ./gradlew generateCodegenArtifactsFromSchema --no-daemon
 
       - name: Build Release APK
         working-directory: android
