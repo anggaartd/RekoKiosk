@@ -871,9 +871,9 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             </View>
 
             {/* Title */}
-            <Text style={styles.welcomeTitle}>FreeKiosk</Text>
+            <Text style={styles.welcomeTitle}>RekoKiosk</Text>
             <Text style={styles.welcomeSubtitle}>
-              Professional Kiosk Application
+              Rekosistem Kiosk Application
             </Text>
 
             {/* Features List */}
@@ -886,10 +886,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
                 icon="⚡"
                 text="Optimal performance"
               />
-              <FeatureItem
-                icon="🎯"
-                text="100% free & open source"
-              />
             </View>
 
             {/* Action Button */}
@@ -900,17 +896,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             >
               <Text style={styles.setupButtonText}>
                 🚀 Start Configuration
-              </Text>
-            </TouchableOpacity>
-
-            {/* GitHub Support Button */}
-            <TouchableOpacity
-              style={styles.githubButton}
-              onPress={handleOpenGitHub}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.githubButtonText}>
-                ⭐ Support us on GitHub
               </Text>
             </TouchableOpacity>
 

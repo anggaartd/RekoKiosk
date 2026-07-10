@@ -219,9 +219,35 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
 
   // Clock state for multi-app home screen
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [batteryLevel, setBatteryLevel] = useState<number>(100);
+  const [isCharging, setIsCharging] = useState<boolean>(false);
+  const [wifiConnected, setWifiConnected] = useState<boolean>(false);
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch battery & wifi status
+  useEffect(() => {
+    const updateStatus = async () => {
+      try {
+        const { SystemInfoModule } = require('react-native').NativeModules;
+        if (SystemInfoModule && SystemInfoModule.getSystemInfo) {
+          const info = await SystemInfoModule.getSystemInfo();
+          if (info?.battery) {
+            setBatteryLevel(info.battery.level);
+            setIsCharging(info.battery.isCharging);
+          }
+          if (info?.wifi) {
+            setWifiConnected(info.wifi.isConnected);
+          }
+        }
+      } catch (e) {}
+    };
+    updateStatus();
+    const statusInterval = setInterval(updateStatus, 10000);
+    return () => clearInterval(statusInterval);
   }, []);
 
   const formatTime = (date: Date) => {
@@ -233,6 +259,34 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   const formatDay = (date: Date) => {
     return date.toLocaleDateString('id-ID', { weekday: 'long' });
   };
+
+  // Battery icon component (portrait/vertical)
+  const BatteryIcon = ({ level, charging }: { level: number; charging: boolean }) => {
+    const fillHeight = Math.max(2, (level / 100) * 20);
+    return (
+      <View style={styles.batteryContainer}>
+        {/* Battery cap */}
+        <View style={styles.batteryCap} />
+        {/* Battery body */}
+        <View style={styles.batteryBody}>
+          {/* Fill */}
+          <View style={[styles.batteryFill, { height: fillHeight }]} />
+          {/* Percentage text */}
+          <Text style={styles.batteryText}>{level}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  // WiFi icon component
+  const WifiIcon = ({ connected }: { connected: boolean }) => (
+    <View style={styles.wifiContainer}>
+      <View style={[styles.wifiArc3, { opacity: connected ? 1 : 0.3 }]} />
+      <View style={[styles.wifiArc2, { opacity: connected ? 1 : 0.3 }]} />
+      <View style={[styles.wifiArc1, { opacity: connected ? 1 : 0.3 }]} />
+      <View style={[styles.wifiDot, { opacity: connected ? 1 : 0.3 }]} />
+    </View>
+  );
 
   // Multi-app mode: show app grid (home screen)
   if (isMultiAppMode && !isAppLaunched) {
@@ -258,6 +312,9 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
             <Text style={styles.multiAppTitle}>Rekosistem</Text>
           </View>
           <View style={styles.multiAppHeaderRight}>
+            <WifiIcon connected={wifiConnected} />
+            <BatteryIcon level={batteryLevel} charging={isCharging} />
+            <View style={styles.multiAppHeaderSeparator} />
             <Text style={styles.multiAppClock}>{formatTime(currentTime)}</Text>
             <View style={styles.multiAppDateContainer}>
               <Text style={styles.multiAppDate}>{formatDate(currentTime)}</Text>
@@ -274,6 +331,11 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
           columnWrapperStyle={styles.appGridRow}
         />
         
+        {/* Watermark footer */}
+        <View style={styles.watermarkContainer}>
+          <Text style={styles.watermarkText}>Created By ARTD</Text>
+        </View>
+
         {/* Test mode warning */}
         {backButtonMode === 'test' && (
           <View style={styles.testModeBar}>
@@ -577,6 +639,109 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  multiAppHeaderSeparator: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    marginHorizontal: 4,
+  },
+  // Battery styles (portrait/vertical)
+  batteryContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  batteryCap: {
+    width: 8,
+    height: 3,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+  },
+  batteryBody: {
+    width: 16,
+    height: 26,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+    borderRadius: 3,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  batteryFill: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    opacity: 0.9,
+  },
+  batteryText: {
+    fontSize: 7,
+    fontWeight: 'bold',
+    color: '#fff',
+    zIndex: 1,
+    marginBottom: 2,
+  },
+  // WiFi styles
+  wifiContainer: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  wifiDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#fff',
+    marginBottom: 1,
+  },
+  wifiArc1: {
+    width: 10,
+    height: 5,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderWidth: 1.5,
+    borderBottomWidth: 0,
+    borderColor: '#fff',
+    position: 'absolute',
+    bottom: 6,
+  },
+  wifiArc2: {
+    width: 16,
+    height: 8,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1.5,
+    borderBottomWidth: 0,
+    borderColor: '#fff',
+    position: 'absolute',
+    bottom: 9,
+  },
+  wifiArc3: {
+    width: 22,
+    height: 11,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1.5,
+    borderBottomWidth: 0,
+    borderColor: '#fff',
+    position: 'absolute',
+    bottom: 12,
+  },
+  // Watermark
+  watermarkContainer: {
+    position: 'absolute',
+    bottom: 8,
+    right: 16,
+  },
+  watermarkText: {
+    fontSize: 10,
+    color: 'rgba(0, 0, 0, 0.12)',
+    fontWeight: '300',
+    fontStyle: 'italic',
   },
   multiAppClock: {
     fontSize: 28,

@@ -392,7 +392,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
       
       {/* Version footer */}
       <Text style={styles.versionFooter}>
-        FreeKiosk v{currentVersion}
+        RekoKiosk v{currentVersion}
       </Text>
     </View>
   );
