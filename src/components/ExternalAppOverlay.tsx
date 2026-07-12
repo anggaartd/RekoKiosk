@@ -70,6 +70,73 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
 
   const [appLabels, setAppLabels] = useState<Record<string, string>>({});
   const [appIcons, setAppIcons] = useState<Record<string, string>>({});
+
+  // Clock state for multi-app home screen
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [batteryLevel, setBatteryLevel] = useState<number>(100);
+  const [isCharging, setIsCharging] = useState<boolean>(false);
+  const [wifiConnected, setWifiConnected] = useState<boolean>(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch battery & wifi status
+  useEffect(() => {
+    const updateStatus = async () => {
+      try {
+        const { SystemInfoModule } = require('react-native').NativeModules;
+        if (SystemInfoModule && SystemInfoModule.getSystemInfo) {
+          const info = await SystemInfoModule.getSystemInfo();
+          if (info?.battery) {
+            setBatteryLevel(info.battery.level);
+            setIsCharging(info.battery.isCharging);
+          }
+          if (info?.wifi) {
+            setWifiConnected(info.wifi.isConnected);
+          }
+        }
+      } catch (e) {}
+    };
+    updateStatus();
+    const statusInterval = setInterval(updateStatus, 10000);
+    return () => clearInterval(statusInterval);
+  }, []);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+  const formatDay = (date: Date) => {
+    return date.toLocaleDateString('id-ID', { weekday: 'long' });
+  };
+
+  // Battery icon component (portrait/vertical)
+  const BatteryIcon = ({ level, charging }: { level: number; charging: boolean }) => {
+    const fillHeight = Math.max(2, (level / 100) * 20);
+    return (
+      <View style={styles.batteryContainer}>
+        <View style={styles.batteryCap} />
+        <View style={styles.batteryBody}>
+          <View style={[styles.batteryFill, { height: fillHeight }]} />
+          <Text style={styles.batteryText}>{level}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  // WiFi icon component
+  const WifiIcon = ({ connected }: { connected: boolean }) => (
+    <View style={styles.wifiContainer}>
+      <View style={[styles.wifiArc3, { opacity: connected ? 1 : 0.3 }]} />
+      <View style={[styles.wifiArc2, { opacity: connected ? 1 : 0.3 }]} />
+      <View style={[styles.wifiArc1, { opacity: connected ? 1 : 0.3 }]} />
+      <View style={[styles.wifiDot, { opacity: connected ? 1 : 0.3 }]} />
+    </View>
+  );
   
   // Return to settings — same mechanism as WebView (tap_anywhere / button)
   const gridTapCountRef = useRef<number>(0);
@@ -216,77 +283,6 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   if (isMultiAppMode && isAppLaunched) {
     return <View style={styles.container} />;
   }
-
-  // Clock state for multi-app home screen
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [batteryLevel, setBatteryLevel] = useState<number>(100);
-  const [isCharging, setIsCharging] = useState<boolean>(false);
-  const [wifiConnected, setWifiConnected] = useState<boolean>(false);
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Fetch battery & wifi status
-  useEffect(() => {
-    const updateStatus = async () => {
-      try {
-        const { SystemInfoModule } = require('react-native').NativeModules;
-        if (SystemInfoModule && SystemInfoModule.getSystemInfo) {
-          const info = await SystemInfoModule.getSystemInfo();
-          if (info?.battery) {
-            setBatteryLevel(info.battery.level);
-            setIsCharging(info.battery.isCharging);
-          }
-          if (info?.wifi) {
-            setWifiConnected(info.wifi.isConnected);
-          }
-        }
-      } catch (e) {}
-    };
-    updateStatus();
-    const statusInterval = setInterval(updateStatus, 10000);
-    return () => clearInterval(statusInterval);
-  }, []);
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
-  };
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  };
-  const formatDay = (date: Date) => {
-    return date.toLocaleDateString('id-ID', { weekday: 'long' });
-  };
-
-  // Battery icon component (portrait/vertical)
-  const BatteryIcon = ({ level, charging }: { level: number; charging: boolean }) => {
-    const fillHeight = Math.max(2, (level / 100) * 20);
-    return (
-      <View style={styles.batteryContainer}>
-        {/* Battery cap */}
-        <View style={styles.batteryCap} />
-        {/* Battery body */}
-        <View style={styles.batteryBody}>
-          {/* Fill */}
-          <View style={[styles.batteryFill, { height: fillHeight }]} />
-          {/* Percentage text */}
-          <Text style={styles.batteryText}>{level}</Text>
-        </View>
-      </View>
-    );
-  };
-
-  // WiFi icon component
-  const WifiIcon = ({ connected }: { connected: boolean }) => (
-    <View style={styles.wifiContainer}>
-      <View style={[styles.wifiArc3, { opacity: connected ? 1 : 0.3 }]} />
-      <View style={[styles.wifiArc2, { opacity: connected ? 1 : 0.3 }]} />
-      <View style={[styles.wifiArc1, { opacity: connected ? 1 : 0.3 }]} />
-      <View style={[styles.wifiDot, { opacity: connected ? 1 : 0.3 }]} />
-    </View>
-  );
 
   // Multi-app mode: show app grid (home screen)
   if (isMultiAppMode && !isAppLaunched) {
