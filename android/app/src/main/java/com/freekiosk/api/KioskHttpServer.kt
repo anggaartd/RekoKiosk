@@ -111,6 +111,9 @@ class KioskHttpServer(
                 isGetOrPost && uri == "/api/reboot" -> handleReboot()
                 isGetOrPost && uri == "/api/clearCache" -> handleClearCache()
                 isGetOrPost && uri == "/api/lock" -> handleLockDevice()
+                isGetOrPost && uri == "/api/kiosk/enable" -> handleKioskEnable(session)
+                isGetOrPost && uri == "/api/kiosk/disable" -> handleKioskDisable(session)
+                method == Method.POST && uri == "/api/ota/update" -> handleOtaUpdate(session)
                 isGetOrPost && uri == "/api/restart-ui" -> handleRestartUi()
                 isGetOrPost && uri == "/api/audio/stop" -> handleAudioStop()
                 isGetOrPost && uri == "/api/audio/beep" -> handleAudioBeep()
@@ -475,6 +478,33 @@ class KioskHttpServer(
     private fun handleLockDevice(): Response {
         checkControlAllowed()?.let { return it }
         val result = commandHandler("lockDevice", null)
+        return jsonSuccess(result)
+    }
+
+    private fun handleKioskEnable(session: IHTTPSession): Response {
+        checkControlAllowed()?.let { return it }
+        val body = parseBody(session)
+        val pin = body?.optString("pin", "") ?: ""
+        val result = commandHandler("kioskEnable", JSONObject().apply { put("pin", pin) })
+        return jsonSuccess(result)
+    }
+
+    private fun handleKioskDisable(session: IHTTPSession): Response {
+        checkControlAllowed()?.let { return it }
+        val body = parseBody(session)
+        val pin = body?.optString("pin", "") ?: ""
+        val result = commandHandler("kioskDisable", JSONObject().apply { put("pin", pin) })
+        return jsonSuccess(result)
+    }
+
+    private fun handleOtaUpdate(session: IHTTPSession): Response {
+        checkControlAllowed()?.let { return it }
+        val body = parseBody(session)
+        val url = body?.optString("url", "") ?: ""
+        if (url.isEmpty()) {
+            return jsonError(Response.Status.BAD_REQUEST, "URL is required")
+        }
+        val result = commandHandler("otaUpdate", JSONObject().apply { put("url", url) })
         return jsonSuccess(result)
     }
 

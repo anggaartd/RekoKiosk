@@ -1000,6 +1000,111 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
             "getLocation" -> {
                 return getLocationInfo()
             }
+            "kioskEnable" -> {
+                // Enable kiosk mode via ADB-style intent (same mechanism as ADB config)
+                return try {
+                    val activity = reactContext.currentActivity
+                    if (activity != null) {
+                        val intent = android.content.Intent(activity, activity.javaClass)
+                        intent.putExtra("pin", params?.optString("pin", "") ?: "")
+                        intent.putExtra("config", """{"kiosk_enabled":true,"auto_launch":"true","auto_relaunch":"true"}""")
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        activity.startActivity(intent)
+                        JSONObject().apply {
+                            put("executed", true)
+                            put("command", command)
+                            put("message", "Kiosk enable command sent")
+                        }
+                    } else {
+                        JSONObject().apply { put("executed", false); put("error", "Activity not available") }
+                    }
+                } catch (e: Exception) {
+                    JSONObject().apply { put("executed", false); put("error", e.message) }
+                }
+            }
+            "kioskDisable" -> {
+                // Disable kiosk mode
+                return try {
+                    val activity = reactContext.currentActivity
+                    if (activity != null) {
+                        val intent = android.content.Intent(activity, activity.javaClass)
+                        intent.putExtra("pin", params?.optString("pin", "") ?: "")
+                        intent.putExtra("config", """{"kiosk_enabled":false,"auto_launch":"false","auto_relaunch":"false"}""")
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        activity.startActivity(intent)
+                        JSONObject().apply {
+                            put("executed", true)
+                            put("command", command)
+                            put("message", "Kiosk disable command sent")
+                        }
+                    } else {
+                        JSONObject().apply { put("executed", false); put("error", "Activity not available") }
+                    }
+                } catch (e: Exception) {
+                    JSONObject().apply { put("executed", false); put("error", e.message) }
+                }
+            }
+            "otaUpdate" -> {
+                // Download APK from URL and trigger install
+                val url = params?.optString("url", "") ?: ""
+                if (url.isEmpty()) {
+                    return JSONObject().apply { put("executed", false); put("error", "URL is required") }
+                }
+                return try {
+                    // Use Android DownloadManager to download APK
+                    val downloadManager = reactContext.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+                    val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+                        .setTitle("RekoKiosk Update")
+                        .setDescription("Downloading update...")
+                        .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, "RekoKiosk-update.apk")
+                        .setMimeType("application/vnd.android.package-archive")
+                    
+                    // Remove old file if exists
+                    val oldFile = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "RekoKiosk-update.apk")
+                    if (oldFile.exists()) oldFile.delete()
+                    
+                    val downloadId = downloadManager.enqueue(request)
+                    
+                    // Register receiver to install after download
+                    val filter = android.content.IntentFilter(android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+                    reactContext.registerReceiver(object : android.content.BroadcastReceiver() {
+                        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                            val id = intent?.getLongExtra(android.app.DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+                            if (id == downloadId) {
+                                try {
+                                    val apkFile = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "RekoKiosk-update.apk")
+                                    if (apkFile.exists()) {
+                                        val installIntent = android.content.Intent(android.content.Intent.ACTION_VIEW)
+                                        val apkUri = androidx.core.content.FileProvider.getUriForFile(
+                                            reactContext,
+                                            "${reactContext.packageName}.fileprovider",
+                                            apkFile
+                                        )
+                                        installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                        installIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        installIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        reactContext.startActivity(installIntent)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "OTA install failed: ${e.message}")
+                                }
+                                reactContext.unregisterReceiver(this)
+                            }
+                        }
+                    }, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+                    
+                    JSONObject().apply {
+                        put("executed", true)
+                        put("command", command)
+                        put("downloadId", downloadId)
+                        put("message", "Download started, will auto-install when complete")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "OTA update failed: ${e.message}")
+                    JSONObject().apply { put("executed", false); put("error", "OTA failed: ${e.message}") }
+                }
+            }
         }
         
         // Send other commands to JS side
