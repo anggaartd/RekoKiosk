@@ -1,4 +1,4 @@
-name: Build APK
+name: Build & Release APK
 
 on:
   push:
@@ -72,8 +72,38 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon --max-workers=2
 
-      - name: Upload APK
+      - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: RekoKiosk-release
           path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Get version & date
+        id: version
+        run: |
+          VERSION=$(grep "versionName" android/app/build.gradle 2>/dev/null | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo "1.0.0")
+          DATE=$(date +'%Y%m%d-%H%M')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}-${DATE}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ steps.version.outputs.date }}
+          name: "RekoKiosk Build ${{ steps.version.outputs.date }}"
+          body: |
+            **Automated build** dari branch `main`
+            
+            Build date: ${{ steps.version.outputs.date }}
+            
+            ### Download
+            Install ke tablet: `adb install -r RekoKiosk.apk`
+            
+            ### OTA Update
+            Gunakan URL di bawah untuk OTA update via Admin Panel.
+          files: android/app/build/outputs/apk/release/app-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
