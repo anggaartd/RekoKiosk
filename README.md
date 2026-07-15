@@ -42,7 +42,6 @@ Custom Android kiosk platform berbasis [FreeKiosk](https://github.com/RushB-fr/f
 ### Custom Branding
 - 🎨 Logo Rekosistem di home screen & boot
 - ⏰ Header: logo + jam + tanggal + battery + WiFi
-- 📝 Watermark "Created By ARTD"
 - 🏷️ App name: RekoKiosk
 
 ---
