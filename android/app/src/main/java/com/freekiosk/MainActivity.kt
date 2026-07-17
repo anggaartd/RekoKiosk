@@ -135,7 +135,7 @@ class MainActivity : ReactActivity() {
         val tailscalePackage = "com.tailscale.ipn"
         // Only set if Tailscale is installed
         if (packageManager.getInstalledPackages(0).any { it.packageName == tailscalePackage }) {
-          devicePolicyManager.setAlwaysOnVpnPackage(adminComponent, tailscalePackage, true)
+          devicePolicyManager.setAlwaysOnVpnPackage(adminComponent, tailscalePackage, false)
         }
       }
     } catch (e: Exception) {
