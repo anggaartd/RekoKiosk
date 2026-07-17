@@ -215,5 +215,9 @@
           android:resource="@xml/accessibility_service_config" />
       </service>
 
+      <receiver
+        android:name=".api.SilentInstallReceiver"
+        android:exported="false" />
+
     </application>
 </manifest>

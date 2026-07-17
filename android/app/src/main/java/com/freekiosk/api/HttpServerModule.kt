@@ -1045,18 +1045,17 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
                 }
             }
             "otaUpdate" -> {
-                // Download APK from URL and trigger install
+                // Download APK from URL and silently install via Device Owner PackageInstaller
                 val url = params?.optString("url", "") ?: ""
                 if (url.isEmpty()) {
                     return JSONObject().apply { put("executed", false); put("error", "URL is required") }
                 }
                 return try {
-                    // Use Android DownloadManager to download APK
                     val downloadManager = reactContext.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
                     val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
                         .setTitle("RekoKiosk Update")
                         .setDescription("Downloading update...")
-                        .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE)
                         .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, "RekoKiosk-update.apk")
                         .setMimeType("application/vnd.android.package-archive")
                     
@@ -1066,7 +1065,7 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
                     
                     val downloadId = downloadManager.enqueue(request)
                     
-                    // Register receiver to install after download
+                    // Register receiver to silently install after download
                     val filter = android.content.IntentFilter(android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE)
                     reactContext.registerReceiver(object : android.content.BroadcastReceiver() {
                         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
@@ -1075,19 +1074,21 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
                                 try {
                                     val apkFile = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "RekoKiosk-update.apk")
                                     if (apkFile.exists()) {
-                                        val installIntent = android.content.Intent(android.content.Intent.ACTION_VIEW)
-                                        val apkUri = androidx.core.content.FileProvider.getUriForFile(
-                                            reactContext,
-                                            "${reactContext.packageName}.fileprovider",
-                                            apkFile
-                                        )
-                                        installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive")
-                                        installIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        installIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        reactContext.startActivity(installIntent)
+                                        silentInstallApk(apkFile)
                                     }
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "OTA install failed: ${e.message}")
+                                    Log.e(TAG, "OTA silent install failed: ${e.message}")
+                                    // Fallback to intent-based install
+                                    try {
+                                        val apkFile = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "RekoKiosk-update.apk")
+                                        val installIntent = android.content.Intent(android.content.Intent.ACTION_VIEW)
+                                        val apkUri = androidx.core.content.FileProvider.getUriForFile(reactContext, "${reactContext.packageName}.fileprovider", apkFile)
+                                        installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                        installIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        reactContext.startActivity(installIntent)
+                                    } catch (e2: Exception) {
+                                        Log.e(TAG, "OTA fallback install also failed: ${e2.message}")
+                                    }
                                 }
                                 reactContext.unregisterReceiver(this)
                             }
@@ -1098,7 +1099,7 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
                         put("executed", true)
                         put("command", command)
                         put("downloadId", downloadId)
-                        put("message", "Download started, will auto-install when complete")
+                        put("message", "Download started, will silently install when complete (Device Owner)")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "OTA update failed: ${e.message}")
@@ -1117,6 +1118,46 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
             put("executed", true)
             put("command", command)
         }
+    }
+
+    /**
+     * Silently install APK using Device Owner PackageInstaller API.
+     * No user interaction required when app is Device Owner.
+     */
+    private fun silentInstallApk(apkFile: java.io.File) {
+        Log.d(TAG, "Silent install starting: ${apkFile.absolutePath} (${apkFile.length()} bytes)")
+        
+        val packageInstaller = reactContext.packageManager.packageInstaller
+        val params = android.content.pm.PackageInstaller.SessionParams(
+            android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL
+        )
+        params.setSize(apkFile.length())
+        
+        val sessionId = packageInstaller.createSession(params)
+        val session = packageInstaller.openSession(sessionId)
+        
+        // Write APK to session
+        val inputStream = java.io.FileInputStream(apkFile)
+        val outputStream = session.openWrite("RekoKiosk-update", 0, apkFile.length())
+        val buffer = ByteArray(65536)
+        var bytesRead: Int
+        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+            outputStream.write(buffer, 0, bytesRead)
+        }
+        session.fsync(outputStream)
+        outputStream.close()
+        inputStream.close()
+        
+        // Create intent for install result
+        val callbackIntent = android.content.Intent(reactContext, SilentInstallReceiver::class.java)
+        val pendingIntent = android.app.PendingIntent.getBroadcast(
+            reactContext, sessionId, callbackIntent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_MUTABLE
+        )
+        
+        // Commit session - this triggers silent install for Device Owner
+        session.commit(pendingIntent.intentSender)
+        Log.d(TAG, "Silent install session committed (sessionId=$sessionId)")
     }
 
     private fun sendEvent(eventName: String, params: WritableMap) {
