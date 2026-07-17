@@ -128,21 +128,6 @@ class MainActivity : ReactActivity() {
     hideSystemUI()
     checkAndStartLockTask()
 
-    // Auto-enable Tailscale VPN (always-on) via Device Owner privilege
-    // This ensures Tailscale auto-starts after reboot without user interaction
-    try {
-      if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
-        val tailscalePackage = "com.tailscale.ipn"
-        // Only set if Tailscale is installed
-        if (packageManager.getInstalledPackages(0).any { it.packageName == tailscalePackage }) {
-          devicePolicyManager.setAlwaysOnVpnPackage(adminComponent, tailscalePackage, false)
-        }
-      }
-    } catch (e: Exception) {
-      // Tailscale not installed or API not available - skip silently
-      android.util.Log.d("MainActivity", "VPN auto-start skip: ${e.message}")
-    }
-
     applyDefaultLauncherPolicy()
 
     // Start KioskWatchdogService (#96) — survives OOM kills via START_STICKY
